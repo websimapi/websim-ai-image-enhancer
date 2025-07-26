@@ -122,6 +122,14 @@ p {
     color: #a370f0;
 }
 
+.prompt-display.concept-display h3 {
+    color: #70d6f0;
+}
+
+.prompt-display.concept-display {
+    border-left-color: #70d6f0;
+}
+
 .prompt-display p {
     margin: 0;
     font-size: 1rem;
@@ -141,4 +149,3 @@ p {
     min-height: 200px;
     background-color: #1a1a1a;
 }
-

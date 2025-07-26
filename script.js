@@ -5,6 +5,8 @@ const generateBtn = document.getElementById('generate-btn');
 const loader = document.getElementById('loader');
 const resultsDiv = document.getElementById('results');
 const originalPromptText = document.getElementById('original-prompt-text');
+const addedConceptContainer = document.querySelector('.concept-display');
+const addedConceptText = document.getElementById('added-concept-text');
 const enhancedPromptText = document.getElementById('enhanced-prompt-text');
 const resultImage = document.getElementById('result-image');
 
@@ -26,14 +28,22 @@ async function handleGeneration() {
     generateBtn.disabled = true;
     loader.classList.remove('hidden');
     resultsDiv.classList.add('hidden');
+    addedConceptContainer.classList.add('hidden');
     resultImage.src = "";
 
     try {
         // --- Step 1: Enhance the prompt ---
-        const enhancedPrompt = await getEnhancedPrompt(originalPrompt);
+        const enhancementResult = await getEnhancedPromptAndConcept(originalPrompt);
+        
+        const { concept, enhancedPrompt } = enhancementResult;
 
         originalPromptText.textContent = originalPrompt;
         enhancedPromptText.textContent = enhancedPrompt;
+        
+        if (concept) {
+            addedConceptText.textContent = concept;
+            addedConceptContainer.classList.remove('hidden');
+        }
 
         // --- Step 2: Generate the image with the enhanced prompt ---
         const imageResult = await websim.imageGen({
@@ -63,54 +73,23 @@ async function handleGeneration() {
     }
 }
 
-async function getEnhancedPrompt(prompt) {
+async function getEnhancedPromptAndConcept(prompt) {
     try {
-        const completion = await websim.chat.completions.create({
+        // --- AI Call 1: Get a creative concept to merge ---
+        const conceptCompletion = await websim.chat.completions.create({
             messages: [{
                 role: "system",
-                content: `You are an expert creative director specializing in vivid, imaginative visual concepts.
-Your task is to take a user's simple image prompt and transform it into a much more detailed, unique, and artistically compelling prompt.
-
-To make your creation truly unique, you MUST combine the user's core concept with one or more concepts from the extensive lists provided below. The combination should be unexpected yet create a coherent and stunning visual. Be bold and creative.
-
-**INSPIRATION LISTS:**
-
-*   **Artistic Styles & Movements:**
-    *   Steampunk, Cyberpunk, Biopunk, Dieselpunk, Solarpunk
-    *   Art Deco, Art Nouveau, Bauhaus, Brutalism
-    *   Surrealism, Impressionism, Cubism, Pointillism
-    *   Ukiyo-e, Psychedelic Art, Vaporwave Aesthetic
-    *   Gothic, Baroque, Rococo
-
-*   **Materials & Textures:**
-    *   Bioluminescent, Crystalline, Prismatic, Iridescent
-    *   Polished Chrome, Rusted Iron, Verdigris Copper
-    *   Ancient Mossy Stone, Volcanic Rock, Polished Marble
-    *   Holographic Fabric, Woven Light, Liquid Metal
-    *   Cracked Porcelain, Intricate Filigree, Lacquered Wood
-    *   Translucent, Ethereal, Gossamer
-
-*   **Mythical & Fantasy Creatures:**
-    *   Dragon, Phoenix, Griffin, Kitsune, Chimera, Manticore
-    *   Leviathan, Kraken, Hydra, Basilisk
-    *   Dryad, Golem (made of stone, crystal, or clockwork), Elemental
-    *   Angel, Demon, Djinn, Fae
-
-*   **Sci-Fi & Cosmic Concepts:**
-    *   Sentient Nebulae, Clockwork Planets, Dyson Spheres
-    *   Alien Flora & Fauna, Extradimensional Beings
-    *   Zero-Gravity Gardens, Post-Apocalyptic Libraries
-    *   Cities on sleeping giants, Sunken metropolises, Floating islands
-    *   Cosmic Horror, Eldritch Abominations
-
-*   **Abstract & Moody Concepts:**
-    *   Solitude, Serenity, Chaos, Harmony
-    *   Nostalgia, Melancholy, Whimsical Dread, Joyful Defiance
-    *   Dreams, Nightmares, Memories, Forgotten Realms
-
-Focus on creating a visually rich description.
-Respond ONLY with a JSON object following this schema: {"enhanced_prompt": "your new, creative prompt here"}.
-Do not include any other text, greetings, or explanations.`,
+                content: `You are a creative muse. A user will provide a core idea for an image. Your task is to suggest a single, unique, and visually interesting concept to merge with the user's idea.
+                This concept should be a specific noun phrase from one of the following categories:
+                - Artistic Style (e.g., "Art Deco", "Ukiyo-e", "Vaporwave Aesthetic")
+                - Material/Texture (e.g., "Bioluminescent Crystal", "Cracked Porcelain", "Woven Light")
+                - Mythical/Fantasy Element (e.g., "Clockwork Dragon", "Floating Islands", "Sunken Metropolis")
+                - Sci-Fi/Cosmic Theme (e.g., "Sentient Nebula", "Post-Apocalyptic Library", "Zero-Gravity Garden")
+                - Abstract Mood (e.g., "Whimsical Dread", "Joyful Defiance")
+                
+                Be creative and unexpected in your choice.
+                Respond ONLY with a JSON object following this schema: {"concept": "Your chosen concept"}.
+                Do not include any other text, greetings, or explanations.`,
             }, {
                 role: "user",
                 content: prompt,
@@ -118,12 +97,39 @@ Do not include any other text, greetings, or explanations.`,
             json: true,
         });
 
-        const result = JSON.parse(completion.content);
-        return result.enhanced_prompt;
+        const conceptResult = JSON.parse(conceptCompletion.content);
+        const creativeConcept = conceptResult.concept;
+
+        // --- AI Call 2: Create the final detailed prompt ---
+        const promptCompletion = await websim.chat.completions.create({
+            messages: [{
+                role: "system",
+                content: `You are an expert creative director specializing in vivid, imaginative visual concepts.
+                Your task is to take a user's original idea and a specific "creative concept" and combine them into a single, detailed, and artistically compelling prompt for an image generator.
+                Elaborate on the combination, describing the scene, lighting, mood, and composition in a visually rich way.
+                Focus on creating a description that would result in a stunning and unique image.
+                Respond ONLY with a JSON object following this schema: {"enhanced_prompt": "your new, creative prompt here"}.
+                Do not include any other text, greetings, or explanations.`,
+            }, {
+                role: "user",
+                content: `Original Idea: "${prompt}"\nCreative Concept to incorporate: "${creativeConcept}"`,
+            }, ],
+            json: true,
+        });
+
+        const promptResult = JSON.parse(promptCompletion.content);
+
+        return {
+            concept: creativeConcept,
+            enhancedPrompt: promptResult.enhanced_prompt,
+        };
 
     } catch (e) {
         console.error("Failed to enhance prompt:", e);
-        // Fallback to the original prompt if enhancement fails
-        return `A beautiful, high-quality image of: ${prompt}`;
+        // Fallback to a simpler enhancement if the multi-step process fails
+        return {
+            concept: null,
+            enhancedPrompt: `A beautiful, high-quality, fantasy art style image of: ${prompt}`,
+        };
     }
 }
