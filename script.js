@@ -80,14 +80,17 @@ async function getEnhancedPromptAndConcept(prompt) {
             messages: [{
                 role: "system",
                 content: `You are a creative muse. A user will provide a core idea for an image. Your task is to suggest a single, unique, and visually interesting concept to merge with the user's idea.
-                This concept should be a specific noun phrase from one of the following categories:
-                - Artistic Style (e.g., "Art Deco", "Ukiyo-e", "Vaporwave Aesthetic")
-                - Material/Texture (e.g., "Bioluminescent Crystal", "Cracked Porcelain", "Woven Light")
-                - Mythical/Fantasy Element (e.g., "Clockwork Dragon", "Floating Islands", "Sunken Metropolis")
-                - Sci-Fi/Cosmic Theme (e.g., "Sentient Nebula", "Post-Apocalyptic Library", "Zero-Gravity Garden")
-                - Abstract Mood (e.g., "Whimsical Dread", "Joyful Defiance")
+                The concept should be a specific noun or noun phrase from any domain imaginable. Think of things like:
+                - An object (e.g., "antique pocket watch", "sentient teapot")
+                - An animal (e.g., "axolotl", "leviathan made of starlight")
+                - A place (e.g., "sunken library", "city in a bottle")
+                - An artistic style (e.g., "Art Deco", "Glitch Art")
+                - A material or texture (e.g., "made of woven light", "carved from a soap bubble")
+                - An abstract idea (e.g., "a fleeting memory", "the sound of the color blue")
+                - A completely random concept (e.g., "sushi", "a jazz solo", "quantum foam")
                 
-                Be creative and unexpected in your choice.
+                Your goal is to be wildly creative, random, and unexpected. The combination should be surprising.
+                Avoid clichés and predictable pairings. Think outside the box.
                 Respond ONLY with a JSON object following this schema: {"concept": "Your chosen concept"}.
                 Do not include any other text, greetings, or explanations.`,
             }, {
